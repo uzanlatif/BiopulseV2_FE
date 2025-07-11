@@ -35,6 +35,14 @@ const MultiBiosignalView: React.FC = () => {
     addData,
   } = useRecorder();
 
+  const bpm = useMemo(() => {
+    if (!sensorData || typeof sensorData !== "object" || !("heartrate" in sensorData)) {
+      return { ECG: null, PPG: null, PCG: null };
+    }
+    return sensorData.heartrate;
+  }, [sensorData]);
+
+
   const dataBufferRef = useRef<Record<string, { x: Date; y: number }[]>>({});
   const MAX_BUFFER_SIZE = { "1h": 3600, "6h": 3600 * 6, "24h": 3600 * 24 };
 
@@ -49,8 +57,7 @@ const MultiBiosignalView: React.FC = () => {
     );
 
     for (const sensorName of selectedSensors) {
-      const values = sensorData[sensorName];
-      if (!Array.isArray(values)) continue;
+      const values = sensorData.signals?.[sensorName]; // ✅ BENAR
 
       const current = dataBufferRef.current[sensorName] || [];
       const newBuffer = values
@@ -73,7 +80,7 @@ const MultiBiosignalView: React.FC = () => {
 
     startTimeRef.current = new Date();
 
-    // Stop after 3 minutes (180000 ms)
+    // Stop after 30 minutes (180000 ms)
     stopTimeoutRef.current = setTimeout(() => {
       stop();
       alert("⏱️ Recording auto-stopped after 30 minutes.");
@@ -216,6 +223,7 @@ const MultiBiosignalView: React.FC = () => {
         toggleCompactView={() => setCompactView((prev) => !prev)}
         elapsedTime={elapsedTime}
         onRestartServer={runServerMBS}
+        bpm={bpm}
       />
 
       <div className="flex flex-col lg:flex-row gap-6">

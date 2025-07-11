@@ -1,30 +1,41 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 
-interface SensorSample {
+export interface SensorSample {
   y: number;
   __timestamp__: number;
 }
 
-interface WebSocketData {
-  [sensor: string]: SensorSample[];
+export interface HeartrateData {
+  ECG: number | null;
+  PPG: number | null;
+  PCG: number | null;
+}
+
+export interface WebSocketData {
+  signals: {
+    [sensor: string]: SensorSample[];
+  };
+  heartrate: HeartrateData;
+  timestamp: number;
 }
 
 interface WebSocketHookResult {
-  data: WebSocketData;
+  data: WebSocketData | null;
   lastUpdated: Date | null;
   reconnect: () => void;
   isConnected: boolean;
 }
 
 const useWebSocket = (url: string): WebSocketHookResult => {
-  const [data, setData] = useState<WebSocketData>({});
+  const [data, setData] = useState<WebSocketData | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
 
-  const isValidWsUrl = (url: string) => /^(ws|wss):\/\/[a-zA-Z0-9.-]+:\d+$/.test(url);
+  const isValidWsUrl = (url: string) =>
+    /^(ws|wss):\/\/[a-zA-Z0-9.-]+:\d+$/.test(url);
 
   const cleanupSocket = () => {
     if (reconnectTimeoutRef.current) {
@@ -62,9 +73,14 @@ const useWebSocket = (url: string): WebSocketHookResult => {
 
       socket.onmessage = (event) => {
         try {
-          const receivedData: WebSocketData = JSON.parse(event.data);
-          if (typeof receivedData === 'object' && receivedData !== null) {
-            setData(receivedData);
+          const parsed: WebSocketData = JSON.parse(event.data);
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            "signals" in parsed &&
+            "heartrate" in parsed
+          ) {
+            setData(parsed);
             setLastUpdated(new Date());
           }
         } catch (err) {
@@ -85,7 +101,7 @@ const useWebSocket = (url: string): WebSocketHookResult => {
     } catch (err) {
       console.error("🚨 Failed to create WebSocket:", err);
     }
-  }, [url]); // ✅ url sebagai dependency
+  }, [url]);
 
   const reconnect = useCallback(() => {
     console.log("🔁 Manual reconnect...");
@@ -97,7 +113,7 @@ const useWebSocket = (url: string): WebSocketHookResult => {
     return () => {
       cleanupSocket();
     };
-  }, [connect]); // ✅ ini akan rerun saat url berubah
+  }, [connect]);
 
   return { data, lastUpdated, reconnect, isConnected };
 };

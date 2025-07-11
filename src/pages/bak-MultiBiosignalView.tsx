@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useEffect, useState } from "react";
 import Header from "../components/MBS/Header";
-import StatusCards from "../components/MBS/StatusCards";
+import StatusCards from "../components/MBS/bak-StatusCards";
 import SensorCard from "../components/MBS/SensorCard";
 import SensorChart from "../components/MBS/SensorChart";
 import useWebSocket from "../hooks/bak-useWebSocket";
@@ -73,7 +73,7 @@ const MultiBiosignalView: React.FC = () => {
 
     startTimeRef.current = new Date();
 
-    // Stop after 3 minutes (180000 ms)
+    // Stop after 30 minutes (180000 ms)
     stopTimeoutRef.current = setTimeout(() => {
       stop();
       alert("⏱️ Recording auto-stopped after 30 minutes.");

@@ -13,19 +13,13 @@ interface StatusCardsProps {
   toggleCompactView: () => void;
   elapsedTime: string;
   onRestartServer: () => void;
-  bpm: {
-    ECG?: number | null;
-    PPG?: number | null;
-    PCG?: number | null;
-  };
 }
-
 
 const cardStyle =
   "bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl shadow-md p-6 flex flex-col justify-between transition-transform hover:scale-[1.02]";
 
-const labelStyle = "text-base text-gray-400 font-semibold";
-const valueStyle = "text-5xl font-bold text-white";
+const labelStyle = "text-base text-gray-400 font-semibold"; // was text-sm
+const valueStyle = "text-5xl font-bold text-white"; // was text-4xl
 
 const StatusCards: React.FC<StatusCardsProps> = ({
   counts,
@@ -33,7 +27,6 @@ const StatusCards: React.FC<StatusCardsProps> = ({
   toggleCompactView,
   elapsedTime,
   onRestartServer,
-  bpm, // ✅ gunakan prop bpm
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-5 w-full">
@@ -59,11 +52,7 @@ const StatusCards: React.FC<StatusCardsProps> = ({
       <div className={cardStyle}>
         <div>
           <p className={labelStyle}>BPM</p>
-          <div className="text-sm text-gray-300 mt-2 space-y-1 leading-snug">
-            <p>ECG: {bpm?.ECG ?? "--"} bpm</p>
-            <p>PPG: {bpm?.PPG ?? "--"} bpm</p>
-            <p>PCG: {bpm?.PCG ?? "--"} bpm</p>
-          </div>
+          <p className="text-2xl text-gray-300 italic mt-1">--</p>
         </div>
       </div>
 
