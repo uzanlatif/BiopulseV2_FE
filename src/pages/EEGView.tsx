@@ -5,7 +5,7 @@ import Header from "../components/EEG/Header";
 import SensorCard from "../components/EEG/SensorCard";
 import SensorChart from "../components/EEG/SensorChart";
 import StatusCards from "../components/EEG/StatusCards";
-import useWebSocket from "../hooks/useWebSocket";
+import useWebSocket from "../hooks/bak-useWebSocket";
 import { processSensorData } from "../utils/dataProcessingEEG";
 import { useWebSocketConfig } from "../context/WebSocketConfigContext";
 import { useRecorder } from "../hooks/useRecording";

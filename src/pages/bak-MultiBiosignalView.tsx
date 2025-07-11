@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useMemo, useRef, useEffect, useState } from "react";
-import Header from "../components/ECG/Header";
-import SensorCard from "../components/ECG/SensorCard";
-import SensorChart from "../components/ECG/SensorChart";
-import StatusCards from "../components/ECG/StatusCards";
-import useWebSocket from "../hooks/bak-useWebSocket";
-import { processSensorData } from "../utils/dataProcessingECG";
+import Header from "../components/MBS/Header";
+import StatusCards from "../components/MBS/StatusCards";
+import SensorCard from "../components/MBS/SensorCard";
+import SensorChart from "../components/MBS/SensorChart";
+import useWebSocket from "../hooks/useWebSocket";
 import { useWebSocketConfig } from "../context/WebSocketConfigContext";
+import { processSensorData } from "../utils/dataProcessingMBS";
 import { useRecorder } from "../hooks/useRecording";
 
-const ECGView: React.FC = () => {
+const MultiBiosignalView: React.FC = () => {
   const [timeRange, setTimeRange] = useState<"1h" | "6h" | "24h">("6h");
   const [selectedSensors, setSelectedSensors] = useState<string[]>([]);
   const [notchEnabledSensors, setNotchEnabledSensors] = useState<Record<string, boolean>>({});
@@ -21,21 +21,27 @@ const ECGView: React.FC = () => {
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
 
-  const { isRecording, start, stop, clear: clearCache, addData } = useRecorder();
-
   const { ip } = useWebSocketConfig();
-  const port = import.meta.env.VITE_PORT_ECG;
+  const port = import.meta.env.VITE_PORT_MBS;
   const websocketUrl = useMemo(() => `ws://${ip}:${port}`, [ip, port]);
 
   const { data: sensorData, lastUpdated, reconnect, isConnected } = useWebSocket(websocketUrl);
 
+  const {
+    isRecording,
+    start,
+    stop,
+    clear: clearCache,
+    addData,
+  } = useRecorder();
+
   const dataBufferRef = useRef<Record<string, { x: Date; y: number }[]>>({});
   const MAX_BUFFER_SIZE = { "1h": 3600, "6h": 3600 * 6, "24h": 3600 * 24 };
 
-  // 🧠 Buffer and recording logic
   useEffect(() => {
     if (!sensorData) return;
 
+    const now = new Date();
     addData(
       Object.fromEntries(
         Object.entries(sensorData).map(([key, val]) => [key, val[val.length - 1]?.y ?? 0])
@@ -51,11 +57,12 @@ const ECGView: React.FC = () => {
         .filter((v) => typeof v.y === "number" && !isNaN(v.y) && typeof v.__timestamp__ === "number")
         .map((v) => ({ x: new Date(v.__timestamp__ * 1000), y: v.y }));
 
-      dataBufferRef.current[sensorName] = [...current, ...newBuffer].slice(-MAX_BUFFER_SIZE[timeRange]);
+      dataBufferRef.current[sensorName] = [...current, ...newBuffer].slice(
+        -MAX_BUFFER_SIZE[timeRange]
+      );
     }
   }, [sensorData, selectedSensors, timeRange, isRecording]);
 
-  // ⏱ Timer + auto-stop after 30 minutes
   useEffect(() => {
     if (!isRecording) {
       clearInterval(timerRef.current!);
@@ -66,11 +73,13 @@ const ECGView: React.FC = () => {
 
     startTimeRef.current = new Date();
 
+    // Stop after 3 minutes (180000 ms)
     stopTimeoutRef.current = setTimeout(() => {
       stop();
       alert("⏱️ Recording auto-stopped after 30 minutes.");
-    }, 1800000); // 30 minutes = 30 * 60 * 1000
+    }, 1800000);
 
+    // Elapsed time counter
     timerRef.current = setInterval(() => {
       const now = new Date();
       const elapsed = Math.floor((now.getTime() - startTimeRef.current!.getTime()) / 1000);
@@ -79,7 +88,7 @@ const ECGView: React.FC = () => {
       const ss = String(elapsed % 60).padStart(2, "0");
       setElapsedTime(`${hh}:${mm}:${ss}`);
     }, 1000);
-    //test
+
     return () => {
       clearInterval(timerRef.current!);
       clearTimeout(stopTimeoutRef.current!);
@@ -103,6 +112,13 @@ const ECGView: React.FC = () => {
     return processSensorData(selected);
   }, [sensorData, selectedSensors, timeRange]);
 
+  const statusCounts = useMemo(() => ({
+    all: Object.keys(processedData).length,
+    critical: 0,
+    warning: 0,
+    normal: 0,
+  }), [processedData]);
+
   const formattedTime = useMemo(
     () =>
       lastUpdated
@@ -111,29 +127,39 @@ const ECGView: React.FC = () => {
     [lastUpdated]
   );
 
-  const statusCounts = useMemo(
-    () => ({
-      all: Object.keys(processedData).length,
-      critical: 0,
-      warning: 0,
-      normal: 0,
-    }),
-    [processedData]
-  );
-
   const sensorGroups = {
     Sensor: [
-      "LEAD_I", "LEAD_II", "LEAD_III", "AVR", "AVL", "AVF",
-      "V1", "V2", "V3", "V4", "V5", "V6",
+      "ECG", "PPG", "PCG", "EMG1", "EMG2", "MYOMETER",
+      "SPIRO", "TEMPERATURE", "NIBP", "OXYGEN",
+      "EEG CH11", "EEG CH12", "EEG CH13", "EEG CH14", "EEG CH15", "EEG CH16",
     ],
   };
 
-  const runServerECG = async () => {
+  const sensorColors: Record<string, string> = {
+    ECG: "#10B981",
+    PPG: "#3B82F6",
+    PCG: "#EF4444",
+    EMG1: "#8B5CF6",
+    EMG2: "#A855F7",
+    MYOMETER: "#6B7280",
+    SPIRO: "#06B6D4",
+    TEMPERATURE: "#F97316",
+    NIBP: "#FACC15",
+    OXYGEN: "#60A5FA",
+    "EEG CH11": "#C084FC",
+    "EEG CH12": "#D946EF",
+    "EEG CH13": "#A78BFA",
+    "EEG CH14": "#F472B6",
+    "EEG CH15": "#FB7185",
+    "EEG CH16": "#F87171",
+  };
+
+  const runServerMBS = async () => {
     try {
       const res = await fetch(`http://${ip}:8000/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script_name: "server_ecg.py" }),
+        body: JSON.stringify({ script_name: "server_mbs.py" }),
       });
       const data = await res.json();
     } catch (err) {
@@ -173,7 +199,6 @@ const ECGView: React.FC = () => {
 
             if (window.usbAPI?.saveToUSB) {
               window.usbAPI.saveToUSB(csv);
-              alert("📤 Saving to USB...");
             } else {
               alert("❌ USB save API not available.");
             }
@@ -190,7 +215,7 @@ const ECGView: React.FC = () => {
         compactView={compactView}
         toggleCompactView={() => setCompactView((prev) => !prev)}
         elapsedTime={elapsedTime}
-        onRestartServer={runServerECG}
+        onRestartServer={runServerMBS}
       />
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -237,7 +262,7 @@ const ECGView: React.FC = () => {
                   >
                     <div className="flex justify-between items-center mb-2">
                       <h2 className="text-lg font-semibold text-gray-100 truncate">
-                        {sensor.displayName || sensorName} Logs
+                        {sensor.displayName} Logs
                       </h2>
                       <label className="text-sm text-gray-300 flex items-center gap-2">
                         <input
@@ -256,7 +281,7 @@ const ECGView: React.FC = () => {
                     <SensorChart
                       data={sensor.chartData}
                       timeRange={timeRange}
-                      color="#EF4444"
+                      color={sensorColors[sensorName] || "#10B981"}
                       simplified={compactView}
                       notch60Hz={!!notchEnabledSensors[sensorName]}
                       compactView={compactView}
@@ -279,4 +304,4 @@ const ECGView: React.FC = () => {
   );
 };
 
-export default ECGView;
+export default MultiBiosignalView;
