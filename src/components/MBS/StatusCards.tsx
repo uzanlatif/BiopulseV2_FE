@@ -39,6 +39,15 @@ const StatusCards: React.FC<StatusCardsProps> = ({
     return Math.round(avg);
   }, [bpmValue]);
 
+  const bpmList = useMemo(() => {
+    if (!bpmValue) return [];
+
+    return Object.entries(bpmValue)
+      .filter(([_, val]) => typeof val === "number" && val !== null)
+      .map(([key, val]) => `${key}: ${val} bpm`);
+  }, [bpmValue]);
+
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-5 w-full">
       {/* Selected Sensors */}
@@ -60,13 +69,14 @@ const StatusCards: React.FC<StatusCardsProps> = ({
       </div>
 
       {/* BPM */}
-      <div className={cardStyle}>
-        <div>
-          <p className={labelStyle}>Avg BPM</p>
-          <p className="text-2xl text-gray-300 italic mt-1">
-            {typeof bpmAverage === "number" ? `${bpmAverage} bpm` : "--"}
-          </p>
-        </div>
+      <div className="flex flex-col gap-1 mt-2">
+        {bpmList.length > 0 ? (
+          bpmList.map((line, idx) => (
+            <p key={idx} className="text-sm text-gray-300 font-mono">{line}</p>
+          ))
+        ) : (
+          <p className="text-sm text-gray-400 italic">-- No BPM --</p>
+        )}
       </div>
 
       {/* Compact / Expand View */}
