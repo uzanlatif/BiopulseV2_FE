@@ -9,7 +9,8 @@ export interface SensorData {
 }
 
 export const processSensorData = (
-  data: Record<string, { x: Date; y: number }[]>
+  data: Record<string, { x: Date; y: number }[]>,
+  bpmData?: Record<string, number | null>  // ✅ new param
 ): Record<string, SensorData> => {
   const result: Record<string, SensorData> = {};
 
@@ -30,7 +31,25 @@ export const processSensorData = (
     'EEG CH14': { displayName: 'EEG Channel 14', unit: 'mV' },
     'EEG CH15': { displayName: 'EEG Channel 15', unit: 'mV' },
     'EEG CH16': { displayName: 'EEG Channel 16', unit: 'mV' },
+    'HEARTRATE': { displayName: 'Heart Rate', unit: 'BPM' }, // ✅
   };
+
+  // ✅ Include heart rate if available
+  if (bpmData) {
+    for (const [key, value] of Object.entries(bpmData)) {
+      const bpm = typeof value === "number" ? value : 0;
+
+      result[`HEARTRATE`] = {
+        name: "HEARTRATE",
+        displayName: sensorConfig["HEARTRATE"].displayName,
+        value: bpm,
+        unit: sensorConfig["HEARTRATE"].unit,
+        status: bpm > 120 ? 'critical' : bpm > 100 ? 'warning' : 'normal',
+        change: 0,
+        chartData: [], // You can optionally push timestamped chartData here if needed
+      };
+    }
+  }
 
   Object.entries(data).forEach(([key, values]) => {
     const validValues = values.filter(v => v && typeof v.y === "number");

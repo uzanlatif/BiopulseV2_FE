@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-interface SensorSample {
+export interface SensorSample {
   y: number;
   __timestamp__: number;
 }
 
-interface WebSocketData {
-  [sensor: string]: SensorSample[];
+export interface WebSocketData {
+  signals: Record<string, SensorSample[]>;
+  heartrate: Record<string, number | null>;
 }
 
-interface WebSocketHookResult {
+export interface WebSocketHookResult {
   data: WebSocketData;
   lastUpdated: Date | null;
   reconnect: () => void;
@@ -17,7 +18,7 @@ interface WebSocketHookResult {
 }
 
 const useWebSocket = (url: string): WebSocketHookResult => {
-  const [data, setData] = useState<WebSocketData>({});
+  const [data, setData] = useState<WebSocketData>({ signals: {}, heartrate: {} });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
@@ -62,9 +63,12 @@ const useWebSocket = (url: string): WebSocketHookResult => {
 
       socket.onmessage = (event) => {
         try {
-          const receivedData: WebSocketData = JSON.parse(event.data);
-          if (typeof receivedData === 'object' && receivedData !== null) {
-            setData(receivedData);
+          const parsed = JSON.parse(event.data);
+
+          if (typeof parsed === 'object' && parsed !== null) {
+            const signals = parsed.signals ?? {};
+            const heartrate = parsed.heartrate ?? {};
+            setData({ signals, heartrate });
             setLastUpdated(new Date());
           }
         } catch (err) {
@@ -85,7 +89,7 @@ const useWebSocket = (url: string): WebSocketHookResult => {
     } catch (err) {
       console.error("🚨 Failed to create WebSocket:", err);
     }
-  }, [url]); // ✅ url sebagai dependency
+  }, [url]);
 
   const reconnect = useCallback(() => {
     console.log("🔁 Manual reconnect...");
@@ -97,7 +101,7 @@ const useWebSocket = (url: string): WebSocketHookResult => {
     return () => {
       cleanupSocket();
     };
-  }, [connect]); // ✅ ini akan rerun saat url berubah
+  }, [connect]);
 
   return { data, lastUpdated, reconnect, isConnected };
 };

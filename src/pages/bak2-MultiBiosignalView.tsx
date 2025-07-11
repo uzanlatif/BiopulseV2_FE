@@ -5,9 +5,9 @@ import Header from "../components/MBS/Header";
 import StatusCards from "../components/MBS/StatusCards";
 import SensorCard from "../components/MBS/SensorCard";
 import SensorChart from "../components/MBS/SensorChart";
-import useWebSocket from "../hooks/bak-useWebSocket";
+import useWebSocket from "../hooks/bak2-useWebSocket";
 import { useWebSocketConfig } from "../context/WebSocketConfigContext";
-import { processSensorData } from "../utils/dataProcessingMBS";
+import { processSensorData } from "../utils/bak2-dataProcessingMBS";
 import { useRecorder } from "../hooks/useRecording";
 
 const MultiBiosignalView: React.FC = () => {
@@ -16,6 +16,8 @@ const MultiBiosignalView: React.FC = () => {
   const [notchEnabledSensors, setNotchEnabledSensors] = useState<Record<string, boolean>>({});
   const [compactView, setCompactView] = useState(true);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
+
+  const [bpmData, setBpmData] = useState<Record<string, number | null>>({}); // ✅ NEW
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -41,15 +43,25 @@ const MultiBiosignalView: React.FC = () => {
   useEffect(() => {
     if (!sensorData) return;
 
+    // ✅ Store BPM if available in WebSocket payload
+    if ("heartrate" in sensorData) {
+      setBpmData(sensorData.heartrate);
+    }
+
+    // ✅ Extract chart data
     const now = new Date();
     addData(
       Object.fromEntries(
-        Object.entries(sensorData).map(([key, val]) => [key, val[val.length - 1]?.y ?? 0])
+        Object.entries(sensorData.signals || sensorData).map(([key, val]) => {
+          const last = Array.isArray(val) && val.length > 0 ? val[val.length - 1] : null;
+          return [key, typeof last?.y === "number" ? last.y : 0];
+        })
       )
     );
 
+
     for (const sensorName of selectedSensors) {
-      const values = sensorData[sensorName];
+      const values = (sensorData.signals || sensorData)[sensorName];
       if (!Array.isArray(values)) continue;
 
       const current = dataBufferRef.current[sensorName] || [];
@@ -73,13 +85,11 @@ const MultiBiosignalView: React.FC = () => {
 
     startTimeRef.current = new Date();
 
-    // Stop after 3 minutes (180000 ms)
     stopTimeoutRef.current = setTimeout(() => {
       stop();
       alert("⏱️ Recording auto-stopped after 30 minutes.");
     }, 1800000);
 
-    // Elapsed time counter
     timerRef.current = setInterval(() => {
       const now = new Date();
       const elapsed = Math.floor((now.getTime() - startTimeRef.current!.getTime()) / 1000);
@@ -109,8 +119,8 @@ const MultiBiosignalView: React.FC = () => {
         selected[name] = dataBufferRef.current[name];
       }
     }
-    return processSensorData(selected);
-  }, [sensorData, selectedSensors, timeRange]);
+    return processSensorData(selected, bpmData); // ✅ Pass bpmData here
+  }, [sensorData, selectedSensors, timeRange, bpmData]);
 
   const statusCounts = useMemo(() => ({
     all: Object.keys(processedData).length,
@@ -179,7 +189,6 @@ const MultiBiosignalView: React.FC = () => {
         reconnect={reconnect}
         toggleRecording={isRecording ? stop : start}
         onDownload={() => {
-          // Generate CSV and send to USB
           try {
             const raw = localStorage.getItem("recordedSensorData");
             if (!raw) {
@@ -216,6 +225,7 @@ const MultiBiosignalView: React.FC = () => {
         toggleCompactView={() => setCompactView((prev) => !prev)}
         elapsedTime={elapsedTime}
         onRestartServer={runServerMBS}
+        bpmValue={bpmData} // ✅ Pass BPM here
       />
 
       <div className="flex flex-col lg:flex-row gap-6">
