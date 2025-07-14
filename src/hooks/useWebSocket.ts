@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 export interface SensorSample {
   y: number;
-  __timestamp__: number;
+  x: number; // ← sesuai format server terbaru
 }
 
 export interface HeartrateData {
@@ -35,7 +35,7 @@ const useWebSocket = (url: string): WebSocketHookResult => {
   const reconnectTimeoutRef = useRef<number | null>(null);
 
   const isValidWsUrl = (url: string) =>
-    /^(ws|wss):\/\/[a-zA-Z0-9.-]+:\d+$/.test(url);
+    /^(ws|wss):\/\/[a-zA-Z0-9.-]+(:\d+)?$/.test(url);
 
   const cleanupSocket = () => {
     if (reconnectTimeoutRef.current) {
@@ -73,14 +73,30 @@ const useWebSocket = (url: string): WebSocketHookResult => {
 
       socket.onmessage = (event) => {
         try {
-          const parsed: WebSocketData = JSON.parse(event.data);
-          if (
-            parsed &&
-            typeof parsed === "object" &&
-            "signals" in parsed &&
-            "heartrate" in parsed
-          ) {
-            setData(parsed);
+          const parsed = JSON.parse(event.data);
+          if (parsed && typeof parsed === "object") {
+            const { HR, __timestamp__, ...rest } = parsed;
+
+            const signals: Record<string, SensorSample[]> = {};
+            for (const [key, value] of Object.entries(rest)) {
+              if (Array.isArray(value)) {
+                signals[key] = value;
+              }
+            }
+
+            const heartrate: HeartrateData = {
+              ECG: HR?.ECG ?? null,
+              PPG: HR?.PPG ?? null,
+              PCG: HR?.PCG ?? null,
+            };
+
+            const formatted: WebSocketData = {
+              signals,
+              heartrate,
+              timestamp: __timestamp__ ?? Date.now(),
+            };
+
+            setData(formatted);
             setLastUpdated(new Date());
           }
         } catch (err) {
