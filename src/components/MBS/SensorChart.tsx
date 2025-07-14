@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 interface SensorChartProps {
-  data: { x: Date; y: number }[];
+  data: { x: Date; y: number }[] | undefined;
   timeRange: "1h" | "6h" | "24h";
   color: string;
   simplified?: boolean;
@@ -89,6 +89,11 @@ const SensorChart: React.FC<SensorChartProps> = ({
   notch60Hz = false,
   compactView = false,
 }) => {
+  // ✅ Lindungi dari undefined/null/empty
+  if (!Array.isArray(data) || data.length === 0) {
+    return <div className="text-gray-400 text-sm px-2 py-1">No data available.</div>;
+  }
+
   const cleanedData = useMemo(() => {
     const allData = data
       .filter(d => d && d.x instanceof Date && !isNaN(d.x.getTime()) && typeof d.y === "number" && !isNaN(d.y))
