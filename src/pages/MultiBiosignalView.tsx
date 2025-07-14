@@ -66,12 +66,13 @@ const MultiBiosignalView: React.FC = () => {
           typeof v === "object" &&
           typeof (v as any).y === "number" &&
           !isNaN((v as any).y) &&
-          typeof (v as any).__timestamp__ === "number"
+          typeof (v as any).x === "number"
         )
         .map((v) => ({
-          x: new Date((v as any).__timestamp__ * 1000),
+          x: new Date((v as any).x * 1000),
           y: (v as any).y,
         }));
+
     }
   }, [sensorData, selectedSensors, timeRange, isRecording]);
 
