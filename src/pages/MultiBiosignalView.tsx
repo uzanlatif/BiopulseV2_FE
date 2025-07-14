@@ -42,7 +42,6 @@ const MultiBiosignalView: React.FC = () => {
     return sensorData.heartrate;
   }, [sensorData]);
 
-
   const dataBufferRef = useRef<Record<string, { x: Date; y: number }[]>>({});
   const MAX_BUFFER_SIZE = { "1h": 3600, "6h": 3600 * 6, "24h": 3600 * 24 };
 
@@ -57,16 +56,22 @@ const MultiBiosignalView: React.FC = () => {
     );
 
     for (const sensorName of selectedSensors) {
-      const values = sensorData.signals?.[sensorName]; // ✅ BENAR
+      const values = sensorData.signals?.[sensorName];
+      if (!Array.isArray(values)) continue;
 
       const current = dataBufferRef.current[sensorName] || [];
       const newBuffer = values
-        .filter((v) => typeof v.y === "number" && !isNaN(v.y) && typeof v.__timestamp__ === "number")
-        .map((v) => ({ x: new Date(v.__timestamp__ * 1000), y: v.y }));
-
-      dataBufferRef.current[sensorName] = [...current, ...newBuffer].slice(
-        -MAX_BUFFER_SIZE[timeRange]
-      );
+        .filter((v) =>
+          v &&
+          typeof v === "object" &&
+          typeof (v as any).y === "number" &&
+          !isNaN((v as any).y) &&
+          typeof (v as any).__timestamp__ === "number"
+        )
+        .map((v) => ({
+          x: new Date((v as any).__timestamp__ * 1000),
+          y: (v as any).y,
+        }));
     }
   }, [sensorData, selectedSensors, timeRange, isRecording]);
 
@@ -80,13 +85,11 @@ const MultiBiosignalView: React.FC = () => {
 
     startTimeRef.current = new Date();
 
-    // Stop after 30 minutes (180000 ms)
     stopTimeoutRef.current = setTimeout(() => {
       stop();
       alert("⏱️ Recording auto-stopped after 30 minutes.");
     }, 1800000);
 
-    // Elapsed time counter
     timerRef.current = setInterval(() => {
       const now = new Date();
       const elapsed = Math.floor((now.getTime() - startTimeRef.current!.getTime()) / 1000);
@@ -186,7 +189,6 @@ const MultiBiosignalView: React.FC = () => {
         reconnect={reconnect}
         toggleRecording={isRecording ? stop : start}
         onDownload={() => {
-          // Generate CSV and send to USB
           try {
             const raw = localStorage.getItem("recordedSensorData");
             if (!raw) {

@@ -2,10 +2,10 @@
 
 import React, { useMemo, useRef, useEffect, useState } from "react";
 import Header from "../components/MBS/Header";
-import StatusCards from "../components/MBS/bak-StatusCards";
+import StatusCards from "../components/MBS/StatusCards";
 import SensorCard from "../components/MBS/SensorCard";
 import SensorChart from "../components/MBS/SensorChart";
-import useWebSocket from "../hooks/bak-useWebSocket";
+import useWebSocket from "../hooks/useWebSocket";
 import { useWebSocketConfig } from "../context/WebSocketConfigContext";
 import { processSensorData } from "../utils/dataProcessingMBS";
 import { useRecorder } from "../hooks/useRecording";
@@ -35,6 +35,14 @@ const MultiBiosignalView: React.FC = () => {
     addData,
   } = useRecorder();
 
+  const bpm = useMemo(() => {
+    if (!sensorData || typeof sensorData !== "object" || !("heartrate" in sensorData)) {
+      return { ECG: null, PPG: null, PCG: null };
+    }
+    return sensorData.heartrate;
+  }, [sensorData]);
+
+
   const dataBufferRef = useRef<Record<string, { x: Date; y: number }[]>>({});
   const MAX_BUFFER_SIZE = { "1h": 3600, "6h": 3600 * 6, "24h": 3600 * 24 };
 
@@ -49,8 +57,7 @@ const MultiBiosignalView: React.FC = () => {
     );
 
     for (const sensorName of selectedSensors) {
-      const values = sensorData[sensorName];
-      if (!Array.isArray(values)) continue;
+      const values = sensorData.signals?.[sensorName]; // ✅ BENAR
 
       const current = dataBufferRef.current[sensorName] || [];
       const newBuffer = values
@@ -216,6 +223,7 @@ const MultiBiosignalView: React.FC = () => {
         toggleCompactView={() => setCompactView((prev) => !prev)}
         elapsedTime={elapsedTime}
         onRestartServer={runServerMBS}
+        bpm={bpm}
       />
 
       <div className="flex flex-col lg:flex-row gap-6">
