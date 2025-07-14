@@ -73,7 +73,15 @@ const MultiBiosignalView: React.FC = () => {
           y: (v as any).y,
         }));
 
+      // ✅ Tambahkan buffer update
+      dataBufferRef.current[sensorName] = [...current, ...newBuffer].slice(-MAX_BUFFER_SIZE[timeRange]);
+
+      // ✅ Tambahkan log debug
+      console.log("📦 sensorData:", sensorData);
+      console.log("🧪 selectedSensors:", selectedSensors);
+      console.log("✅ newBuffer:", newBuffer);
     }
+
   }, [sensorData, selectedSensors, timeRange, isRecording]);
 
   useEffect(() => {
