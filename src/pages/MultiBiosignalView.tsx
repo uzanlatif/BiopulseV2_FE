@@ -49,11 +49,17 @@ const MultiBiosignalView: React.FC = () => {
     if (!sensorData) return;
 
     const now = new Date();
-    addData(
-      Object.fromEntries(
-        Object.entries(sensorData).map(([key, val]) => [key, val[val.length - 1]?.y ?? 0])
-      )
-    );
+    if (sensorData.signals) {
+      addData(
+        Object.fromEntries(
+          Object.entries(sensorData.signals).map(([key, val]) => {
+            if (!Array.isArray(val) || val.length === 0) return [key, 0];
+            const last = val[val.length - 1];
+            return [key, typeof last.y === "number" ? last.y : 0];
+          })
+        )
+      );
+    }
 
     for (const sensorName of selectedSensors) {
       const values = sensorData.signals?.[sensorName];
